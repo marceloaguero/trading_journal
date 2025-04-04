@@ -1,9 +1,51 @@
+
 import pandas as pd
 import yaml
 import os
 import uuid
-from datetime import datetime
-from utils import parse_symbol, calcular_dte  # Importar las funciones de utils
+from datetime import datetime, timedelta
+from collections import defaultdict
+from utils import parse_symbol_improved, calcular_dte_pata  # Importar las funciones de utils
+
+def parse_symbol(symbol):
+    """
+    Parsea el symbol de Tastytrade para extraer detalles, incluyendo opciones sobre futuros.
+
+    Args:
+        symbol (str): El símbolo de la opción.
+
+    Returns:
+        dict: Un diccionario con el subyacente, vencimiento, tipo y strike.
+              Devuelve None si no se puede parsear el símbolo.
+    """
+    try:
+        parts = symbol.split()
+        if len(parts) > 1:  # Verificar si hay al menos dos partes
+            subyacente = parts[0].split('/')[1] if '/' in parts[0] else parts[0]
+            vencimiento_str = parts[1][:6] if len(parts[1]) >= 6 else ""  # Verificar longitud antes de acceder
+            vencimiento = datetime.strptime(vencimiento_str, '%y%m%d').strftime('%Y-%m-%d') if vencimiento_str else None
+            tipo = "PUT" if "P" in symbol else "CALL"
+            # Extraer el strike de la cadena parts[1]
+            strike_part = parts[1][1:]
+            if 'P' in strike_part:
+                strike_str = strike_part.split('P')[1]
+            elif 'C' in strike_part:
+                strike_str = strike_part.split('C')[1]
+            else:
+                strike_str = strike_part
+            strike = float(strike_str)
+            return {'subyacente': subyacente.strip(), 'vencimiento': vencimiento, 'tipo': tipo, 'strike': strike}
+        else:
+            return None  # No se pudo parsear el símbolo
+    except (ValueError, IndexError) as e:
+        print(f"Error al parsear el símbolo '{symbol}': {e}")
+        return None
+
+def calcular_dte(vencimiento_str):
+    """Calcula los días hasta el vencimiento."""
+    vencimiento = datetime.strptime(vencimiento_str, '%Y-%m-%d')
+    hoy = datetime.now().date()  # Obtener solo la fecha actual
+    return (vencimiento.date() - hoy).days
 
 def procesar_archivo_actividad(archivo_csv, carpeta_posiciones="data/yaml/posiciones_activas"):
     """
@@ -118,9 +160,9 @@ def crear_archivo_yaml_posicion(df, index, carpeta_posiciones):
 
 def buscar_patas_relacionadas(df, index, umbral_tiempo_segundos=5):
     """
-    Encuentra las filas del DataFrame que pertenecen al mismo trade que la fila actual,
-    considerando el subyacente raíz, la cercanía en el tiempo y la verificación manual
-    en caso de ambigüedad.
+    Encuentra las filas del DataFrame que pertenecen al mismo trade,
+    priorizando la cercanía en el tiempo y el símbolo raíz.
+    Permite la intervención manual en caso de ambigüedad.
 
     Args:
         df (pd.DataFrame): El DataFrame que contiene los datos de actividad.
@@ -137,7 +179,8 @@ def buscar_patas_relacionadas(df, index, umbral_tiempo_segundos=5):
     fecha_hora_str = row['Date']
     fecha_hora_dt = datetime.fromisoformat(fecha_hora_str)
     root_symbol = row['Root Symbol']
-    patas_indices = [index]  # Incluir la fila actual
+    patas_indices = [index]
+    posibles_patas = []
 
     for i in range(len(df)):
         if i != index:
@@ -148,20 +191,25 @@ def buscar_patas_relacionadas(df, index, umbral_tiempo_segundos=5):
             diferencia_tiempo = abs((fecha_hora_dt - otra_fecha_hora_dt).total_seconds())
 
             if otra_root_symbol == root_symbol and diferencia_tiempo <= umbral_tiempo_segundos:
-                patas_indices.append(i)
+                posibles_patas.append(i)
 
-    # Verificar si hay ambigüedad (más de 4 patas encontradas)
-    if len(patas_indices) > 4:  # Ajusta este número según tus estrategias más complejas
-        print(f"\nAdvertencia: Posible ambigüedad al agrupar patas para '{root_symbol}' el {fecha_hora_str}.")
-        print("Por favor, verifica si las siguientes transacciones pertenecen al mismo trade:")
+    # Si no hay patas posibles, devolver solo la fila actual
+    if not posibles_patas:
+        return [index]
+
+    # Preguntar al usuario si hay ambigüedad
+    if len(posibles_patas) > 0:
+        print(f"\nPosibles patas relacionadas para '{root_symbol}' el {fecha_hora_str}:")
         for i in patas_indices:
+            print(f"- {df.iloc[i]['Date']} - {df.iloc[i]['Description']}")
+        for i in posibles_patas:
             print(f"- {df.iloc[i]['Date']} - {df.iloc[i]['Description']}")
 
         confirmacion = input("¿Son estas transacciones parte del mismo trade? (s/n): ")
         if confirmacion.lower() != 's':
-            return [index]  # Solo la fila original
+            return [index]
         else:
-            return patas_indices  # Agrupar todas las patas encontradas
+            return patas_indices + posibles_patas
 
     return patas_indices
 

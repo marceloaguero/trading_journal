@@ -1,31 +1,38 @@
 from datetime import datetime
 
-def parse_symbol(symbol):
+def parse_symbol_improved(symbol):
     """
     Parsea el symbol de Tastytrade para extraer detalles, incluyendo opciones sobre futuros.
-
-    Args:
-        symbol (str): El símbolo de la opción.
-
-    Returns:
-        dict: Un diccionario con el subyacente, vencimiento, tipo y strike.
-              Devuelve None si no se puede parsear el símbolo.
+    Devuelve None si no se puede parsear.
     """
     try:
         parts = symbol.split()
-        subyacente = parts[0].split('/')[1] if '/' in parts[0] else parts[0]  # Extraer subyacente de futuros
-        vencimiento_str = parts[1][:6]  # Asume que los primeros 6 caracteres después del símbolo son la fecha
-        vencimiento = datetime.strptime(vencimiento_str, '%y%m%d').strftime('%Y-%m-%d')
-        tipo = "PUT" if "P" in symbol else "CALL"
-        strike_str = parts[1][1:]  # Asume que el strike está después de la fecha
-        strike = float(strike_str.split('P')[1].split('C')[1]) if 'P' in strike_str or 'C' in strike_str else float(strike_str)
-        return {'subyacente': subyacente.strip(), 'vencimiento': vencimiento, 'tipo': tipo, 'strike': strike}
-    except (ValueError, IndexError) as e:
+        if len(parts) > 1:
+            subyacente = parts[0].split('/')[1] if '/' in parts[0] else parts[0]
+            vencimiento_str = parts[1][:6] if len(parts[1]) >= 6 else None
+            vencimiento = datetime.strptime(vencimiento_str, '%y%m%d').strftime('%Y-%m-%d') if vencimiento_str else None
+            tipo = "PUT" if "P" in symbol else "CALL" if "C" in symbol else None
+            strike_str = ''.join(filter(str.isdigit, parts[-1])) if parts else None
+            strike = float(strike_str) / 100.0 if strike_str else None
+            return {'subyacente': subyacente.strip(), 'vencimiento': vencimiento, 'tipo': tipo, 'strike': strike}
+        else:
+            return None
+    except (ValueError, IndexError, TypeError) as e:
         print(f"Error al parsear el símbolo '{symbol}': {e}")
         return None
 
-def calcular_dte(vencimiento_str):
-    """Calcula los días hasta el vencimiento."""
-    vencimiento = datetime.strptime(vencimiento_str, '%Y-%m-%d')
-    hoy = datetime.now().date()  # Obtener solo la fecha actual
-    return (vencimiento.date() - hoy).days
+def es_put(pata):
+    return pata['tipo'] == 'PUT'
+
+def es_call(pata):
+    return pata['tipo'] == 'CALL'
+
+def es_compra(cantidad):
+    return cantidad > 0
+
+def es_venta(cantidad):
+    return cantidad < 0
+
+def calcular_dte_pata(vencimiento):
+    hoy = datetime.now().date()
+    return (vencimiento.date() - hoy).days if vencimiento else None
