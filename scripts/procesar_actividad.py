@@ -22,7 +22,7 @@ def procesar_archivo_actividad(archivo_csv, carpeta_posiciones="data/yaml/posici
     trades_agrupados = agrupar_trades(df)
 
     for subyacente_base, trade_data in trades_agrupados.items():
-        crear_archivo_yaml_posicion(subyacente_base, trade_data, carpeta_posiciones)
+        crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posiciones)  # Pasar df
 
 
 def agrupar_trades(df, umbral_tiempo_minutos=3):
@@ -72,7 +72,7 @@ def agrupar_calendars(df, trades):
 
     for trade_id, trade in trades.items():
         if len(trade) == 3 and all(parse_symbol_improved(t['Symbol'])['tipo'] == 'PUT' for t in trade if
-                                  parse_symbol_improved(t['Symbol'])) and sum(t['Quantity'] for t in trade) == 0 and len(
+                                  parse_symbol_improved(t['Symbol'])) and sum(t['Quantity'] for t in trade) == 2 and len(
                 set(parse_symbol_improved(t['Symbol'])['vencimiento'] for t in trade if
                     parse_symbol_improved(t['Symbol']))) == 2:
             print(f"\nPosible Calendar 1-1-2: Trade ID(s): {[t['Order #'] for t in trade]}")
@@ -93,7 +93,7 @@ def agrupar_calendars(df, trades):
     return trades
 
 
-def crear_archivo_yaml_posicion(subyacente_base, trade_data, carpeta_posiciones):
+def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posiciones):  # Añadir df como primer argumento
     """
     Crea un archivo YAML para una posición agrupada, utilizando el subyacente base en el nombre del archivo.
     Reemplaza caracteres problemáticos en el nombre del archivo.
@@ -117,9 +117,9 @@ def crear_archivo_yaml_posicion(subyacente_base, trade_data, carpeta_posiciones)
             vencimiento_date = datetime.strptime(vencimiento_str, '%Y-%m-%d').date() if vencimiento_str else None
             patas.append({
                 'tipo': pata_opcion_details['tipo'],
-                'strike': pata_opcion_details['strike'],
+                'strike': pata_data['Strike Price'],  # Obtener el strike de la columna 'Strike Price'
                 'vencimiento': vencimiento_date,
-                'cantidad': pata_data['Quantity'],
+                'cantidad': pata_data['Quantity'] if 'Quantity' in pata_data else 0,
                 'precio_apertura': pata_data['Average Price'],
                 'precio_actual': pata_data['Average Price'],
                 'fecha_cierre': None,
@@ -130,10 +130,10 @@ def crear_archivo_yaml_posicion(subyacente_base, trade_data, carpeta_posiciones)
     # Determinar la estrategia DESPUÉS de agrupar las patas
     if len(patas) == 1 and patas[0]['tipo'] == 'PUT' and patas[0]['cantidad'] < 0:
         estrategia = "NakedPut"
-    elif len(patas) == 3 and all(pata['tipo'] == 'PUT' for pata in patas) and \
-            sum(pata['cantidad'] for pata in patas) == 0 and \
-            len(set(pata['vencimiento'] for pata in patas)) == 2:
-        estrategia = "Calendar1-1-2"
+    elif len(patas) == 3 and all(pata['tipo'] == 'PUT' for pata in patas):
+        vencimientos = [pata['vencimiento'] for pata in patas if pata['vencimiento']]
+        if len(vencimientos) == 3 and len(set(vencimientos)) == 2 and patas[0]['strike'] < patas[2]['strike']:
+            estrategia = "Calendar1-1-2"
 
     # Reemplazar caracteres problemáticos en el nombre del archivo
     subyacente_base_seguro = re.sub(r'[\\/*?:"<>|]', '_', subyacente_base)
@@ -143,7 +143,7 @@ def crear_archivo_yaml_posicion(subyacente_base, trade_data, carpeta_posiciones)
     posicion_data = {
         'id': str(uuid.uuid4()),
         'fecha_inicio': fecha_inicio,
-        'subyacente': subyacente_base,  # Usar subyacente_base
+        'subyacente': subyacente_base,
         'estrategia': estrategia,
         'cantidad_rolls': 0,
         'credito_debito_inicial': total_credito_debito,
