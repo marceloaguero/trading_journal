@@ -1,0 +1,29 @@
+# Ignorar archivos CSV de Tastytrade
+data/csv/*
+!data/csv/.gitkeep  # Excepción: Mantener la carpeta vacía en Git
+
+# Ignorar archivos YAML de posiciones
+data/yaml/*
+!data/yaml/.gitkeep  # Excepción: Mantener la carpeta vacía en Git
+
+# Ignorar archivos de registro (logs)
+*.log
+
+# Ignorar archivos temporales
+*.tmp
+*.swp
+
+# Ignorar archivos de Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignorar entornos virtuales (si usas)
+venv/
+.venv/
+env/
+.env/
+
+# Ignorar archivos específicos del sistema operativo
+.DS_Store
+Thumbs.db
