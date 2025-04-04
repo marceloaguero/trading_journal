@@ -35,4 +35,4 @@ def es_venta(cantidad):
 
 def calcular_dte_pata(vencimiento):
     hoy = datetime.now().date()
-    return (vencimiento.date() - hoy).days if vencimiento else None
+    return (vencimiento - hoy).days if vencimiento else None
