@@ -5,38 +5,52 @@ import uuid
 from datetime import datetime, timedelta
 from collections import defaultdict
 import re  # Importar la biblioteca de expresiones regulares
+import glob  # Para buscar archivos
+import shutil  # Para mover archivos
 
-from utils import parse_symbol_improved, calcular_dte_pata  # Asegúrate de importar correctamente
+from utils import parse_symbol_improved, calcular_dte_pata, es_1_1_2, es_calendar_1_1_2  # Asegúrate de importar correctamente
 
 
-def procesar_archivo_actividad(archivo_csv, carpeta_posiciones="data/yaml/posiciones_activas"):
+def procesar_archivos_actividad(carpeta_csv="data/csv/actividad/", carpeta_procesados="data/csv/actividad/procesados/",
+                             carpeta_posiciones="data/yaml/posiciones_activas/", archivo_procesados="data/procesados.txt"):
     """
-    Procesa un archivo CSV de actividad de Tastytrade y crea archivos YAML de posiciones.
+    Procesa todos los archivos CSV de actividad en una carpeta, evitando reprocesar los ya procesados.
+    Mueve los archivos procesados a la carpeta 'procesados'.
     """
     try:
-        df = pd.read_csv(archivo_csv)
+        with open(archivo_procesados, 'r') as f:
+            archivos_procesados = f.read().splitlines()
     except FileNotFoundError:
-        print(f"Error: No se encontró el archivo '{archivo_csv}'")
-        return
+        archivos_procesados = []
+
+    archivos_csv = glob.glob(os.path.join(carpeta_csv, "*.csv"))
+
+    for archivo_csv_ruta in archivos_csv:
+        nombre_archivo = os.path.basename(archivo_csv_ruta)
+        if nombre_archivo not in archivos_procesados:
+            df = pd.read_csv(archivo_csv_ruta)
+            procesar_archivo_actividad(df, nombre_archivo, carpeta_posiciones)
+            archivos_procesados.append(nombre_archivo)
+            with open(archivo_procesados, 'a') as f:
+                f.write(nombre_archivo + '\n')
+            # Mover el archivo a la carpeta 'procesados'
+            shutil.move(archivo_csv_ruta, os.path.join(carpeta_csv, "procesados", nombre_archivo))
+
+
+def procesar_archivo_actividad(df, nombre_archivo, carpeta_posiciones="data/yaml/posiciones_activas/"):
+    """
+    Procesa un único DataFrame (ya leído desde el CSV) y crea archivos YAML de posiciones.
+    """
 
     trades_agrupados = agrupar_trades(df)
 
     for subyacente_base, trade_data in trades_agrupados.items():
-        crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posiciones)  # Pasar df
+        crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posiciones)
 
 
 def agrupar_trades(df, umbral_tiempo_minutos=3):
     """
     Agrupa las filas del DataFrame en trades basado en la cercanía en la fecha/hora de ejecución y el subyacente "base".
-
-    Args:
-        df (pd.DataFrame): El DataFrame que contiene los datos de actividad.
-        umbral_tiempo_minutos (int, optional): El umbral de tiempo en minutos para considerar
-                                              transacciones como parte del mismo trade.
-                                              Defaults to 3.
-
-    Returns:
-        dict: Un diccionario donde las claves son los subyacentes "base" y los valores son listas de filas del DataFrame.
     """
     trades = defaultdict(list)
 
@@ -46,11 +60,11 @@ def agrupar_trades(df, umbral_tiempo_minutos=3):
         underlying_symbol = row['Underlying Symbol'] if row['Instrument Type'] == 'Future Option' else row['Root Symbol']
         # Extraer el "símbolo base" del futuro
         if row['Instrument Type'] == 'Future Option' and underlying_symbol:
-            underlying_symbol_base = underlying_symbol[:-2]  # Eliminar los últimos 2 caracteres
+            underlying_symbol_base = underlying_symbol[:-2]
         else:
             underlying_symbol_base = underlying_symbol
 
-        trade_id = underlying_symbol_base  # Usar el subyacente base como ID inicial
+        trade_id = underlying_symbol_base
 
         if trade_id not in trades:
             trades[trade_id] = []
@@ -93,7 +107,7 @@ def agrupar_calendars(df, trades):
     return trades
 
 
-def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posiciones):  # Añadir df como primer argumento
+def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posiciones):
     """
     Crea un archivo YAML para una posición agrupada, utilizando el subyacente base en el nombre del archivo.
     Reemplaza caracteres problemáticos en el nombre del archivo.
@@ -115,11 +129,12 @@ def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posicio
         if pata_opcion_details:
             vencimiento_str = pata_opcion_details['vencimiento']
             vencimiento_date = datetime.strptime(vencimiento_str, '%Y-%m-%d').date() if vencimiento_str else None
+            cantidad = -pata_data['Quantity'] if 'SELL' in str(pata_data['Action']).upper() else pata_data['Quantity']  # Corrección importante
             patas.append({
                 'tipo': pata_opcion_details['tipo'],
-                'strike': pata_data['Strike Price'],  # Obtener el strike de la columna 'Strike Price'
+                'strike': pata_data['Strike Price'],
                 'vencimiento': vencimiento_date,
-                'cantidad': pata_data['Quantity'] if 'Quantity' in pata_data else 0,
+                'cantidad': cantidad,
                 'precio_apertura': pata_data['Average Price'],
                 'precio_actual': pata_data['Average Price'],
                 'fecha_cierre': None,
@@ -130,10 +145,15 @@ def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posicio
     # Determinar la estrategia DESPUÉS de agrupar las patas
     if len(patas) == 1 and patas[0]['tipo'] == 'PUT' and patas[0]['cantidad'] < 0:
         estrategia = "NakedPut"
-    elif len(patas) == 3 and all(pata['tipo'] == 'PUT' for pata in patas):
-        vencimientos = [pata['vencimiento'] for pata in patas if pata['vencimiento']]
-        if len(vencimientos) == 3 and len(set(vencimientos)) == 2 and patas[0]['strike'] < patas[2]['strike']:
-            estrategia = "Calendar1-1-2"
+    elif es_1_1_2(patas):
+        estrategia = "1-1-2"
+        print("DEBUG: ¡Identificado como 1-1-2!")
+    elif es_calendar_1_1_2(patas):
+        estrategia = "Calendar1-1-2"
+        print("DEBUG: ¡Identificado como Calendar 1-1-2!")
+    else:
+        estrategia = "Unknown"
+        print("DEBUG: No se pudo identificar la estrategia")
 
     # Reemplazar caracteres problemáticos en el nombre del archivo
     subyacente_base_seguro = re.sub(r'[\\/*?:"<>|]', '_', subyacente_base)
@@ -181,4 +201,4 @@ def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posicio
 
 if __name__ == "__main__":
     archivo_csv = "data/csv/actividad/tastytrade_transactions_history_x5WW34822_241120_to_241120.csv"  # Reemplaza con tu archivo
-    procesar_archivo_actividad(archivo_csv)
+    procesar_archivos_actividad()
