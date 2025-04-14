@@ -1,3 +1,0 @@
-tastytrade_transactions_history_x5WW34822_241120_to_241120.csv
-tastytrade_transactions_history_x5WW34822_250317_to_250317.csv
-tastytrade_transactions_history_x5WW34822_250401_to_250401.csv

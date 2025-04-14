@@ -8,8 +8,7 @@ import re  # Importar la biblioteca de expresiones regulares
 import glob  # Para buscar archivos
 import shutil  # Para mover archivos
 
-from utils import parse_symbol_improved, calcular_dte_pata, es_1_1_2, es_calendar_1_1_2, es_iron_condor  # Asegúrate de importar correctamente
-
+from utils import parse_symbol_improved, calcular_dte_pata, es_1_1_2, es_calendar_1_1_2, es_iron_condor, es_strangle  # Asegúrate de importar correctamente
 
 def procesar_archivos_actividad(carpeta_csv="data/csv/actividad/", carpeta_procesados="data/csv/actividad/procesados/",
                              carpeta_posiciones="data/yaml/posiciones_activas/", archivo_procesados="data/procesados.txt"):
@@ -151,6 +150,8 @@ def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posicio
         estrategia = "Calendar1-1-2"
     elif es_iron_condor(patas):
         estrategia = "IronCondor"
+    elif es_strangle(patas):
+        estrategia = "Strangle"  # Añadir la llamada a es_strangle
     else:
         estrategia = "Unknown"
 

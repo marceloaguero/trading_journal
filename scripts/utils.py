@@ -151,3 +151,34 @@ def es_iron_condor(patas):
         return True
 
     return False
+
+def es_strangle(patas):
+    """
+    Identifica la estrategia Strangle.
+
+    Args:
+        patas (list): Una lista de diccionarios, donde cada diccionario representa una pata de la operación.
+
+    Returns:
+        bool: True si las patas corresponden a una estrategia Strangle, False en caso contrario.
+    """
+    if len(patas) != 2:
+        return False
+
+    vencimientos = [pata['vencimiento'] for pata in patas]
+    if len(set(vencimientos)) != 1:
+        return False
+
+    tipos = [pata['tipo'] for pata in patas]
+    if 'CALL' not in tipos or 'PUT' not in tipos:
+        return False
+
+    cantidades = [pata['cantidad'] for pata in patas]
+    if cantidades[0] > 0 or cantidades[1] > 0:  # Corrección: Verificar que ambas sean ventas
+        return False
+
+    strikes = [pata['strike'] for pata in patas]
+    if strikes[0] == strikes[1]:
+        return False
+
+    return True
