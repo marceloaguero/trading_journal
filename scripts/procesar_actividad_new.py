@@ -8,7 +8,8 @@ import re  # Importar la biblioteca de expresiones regulares
 import glob  # Para buscar archivos
 import shutil  # Para mover archivos
 
-from utils import parse_symbol_improved, calcular_dte_pata, es_1_1_2, es_calendar_1_1_2, es_iron_condor, es_strangle  # Asegúrate de importar es_strangle
+from utils import parse_symbol_improved, calcular_dte_pata, es_1_1_2, es_calendar_1_1_2, es_iron_condor  # Asegúrate de importar correctamente
+
 
 def procesar_archivos_actividad(carpeta_csv="data/csv/actividad/", carpeta_procesados="data/csv/actividad/procesados/",
                              carpeta_posiciones="data/yaml/posiciones_activas/", archivo_procesados="data/procesados.txt"):
@@ -126,14 +127,13 @@ def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posicio
         pata_symbol = pata_data['Symbol']
         pata_opcion_details = parse_symbol_improved(pata_symbol)
         if pata_opcion_details:
-            vencimiento_str = pata_opcion_details['vencimiento']
-            vencimiento_date = datetime.strptime(vencimiento_str, '%Y-%m-%d').date() if vencimiento_str else None
-            cantidad = -pata_data['Quantity'] if 'SELL' in str(pata_data['Action']).upper() else pata_data['Quantity']
+            #vencimiento_str = pata_opcion_details['vencimiento']
+            vencimiento_date = datetime.strptime(pata_data['Expiration Date'], '%m/%d/%y').date() if 'Expiration Date' in pata_data else None
             patas.append({
                 'tipo': pata_opcion_details['tipo'],
                 'strike': pata_data['Strike Price'],
                 'vencimiento': vencimiento_date,
-                'cantidad': cantidad,
+                'cantidad': -pata_data['Quantity'] if 'SELL' in str(pata_data['Action']).upper() else pata_data['Quantity'],
                 'precio_apertura': pata_data['Average Price'],
                 'precio_actual': pata_data['Average Price'],
                 'fecha_cierre': None,
@@ -151,7 +151,7 @@ def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posicio
     elif es_iron_condor(patas):
         estrategia = "IronCondor"
     elif es_strangle(patas):
-        estrategia = "Strangle"  # Añadir la llamada a es_strangle
+        estrategia = "Strangle"
     else:
         estrategia = "Unknown"
 
