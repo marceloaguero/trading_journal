@@ -6,6 +6,9 @@ data/csv/*
 data/yaml/*
 !data/yaml/.gitkeep  # Excepción: Mantener la carpeta vacía en Git
 
+#Ignorar el archivo de posiciones procesadas
+data/procesados.txt
+
 # Ignorar archivos de registro (logs)
 *.log
 
