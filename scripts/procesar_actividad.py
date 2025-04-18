@@ -8,7 +8,7 @@ import re  # Importar la biblioteca de expresiones regulares
 import glob  # Para buscar archivos
 import shutil  # Para mover archivos
 
-from utils import parse_symbol_improved, calcular_dte_pata, es_1_1_2, es_calendar_1_1_2, es_iron_condor, es_strangle
+from utils import parse_symbol_improved, calcular_dte_pata, es_1_1_2, es_calendar_1_1_2, es_iron_condor, es_strangle, identificar_spread  # Asegúrate de importar es_strangle
 
 
 def procesar_archivos_actividad(carpeta_csv="data/csv/actividad/", carpeta_procesados="data/csv/actividad/procesados/",
@@ -127,17 +127,19 @@ def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posicio
         pata_symbol = pata_data['Symbol']
         pata_opcion_details = parse_symbol_improved(pata_symbol)
         if pata_opcion_details:
-            #vencimiento_str = pata_opcion_details['vencimiento']
-            vencimiento_date = datetime.strptime(pata_data['Expiration Date'], '%m/%d/%y').date() if 'Expiration Date' in pata_data else None
+            # vencimiento_str = pata_opcion_details['vencimiento']
+            vencimiento_date = datetime.strptime(pata_data['Expiration Date'], '%m/%d/%y').date() if 'Expiration Date' in pata_data else None  # Usar Expiration Date
+            cantidad = -pata_data['Quantity'] if 'SELL' in str(pata_data['Action']).upper() else pata_data['Quantity']
             patas.append({
                 'tipo': pata_opcion_details['tipo'],
                 'strike': pata_data['Strike Price'],
                 'vencimiento': vencimiento_date,
-                'cantidad': -pata_data['Quantity'] if 'SELL' in str(pata_data['Action']).upper() else pata_data['Quantity'],
+                'cantidad': cantidad,
                 'precio_apertura': pata_data['Average Price'],
                 'precio_actual': pata_data['Average Price'],
                 'fecha_cierre': None,
                 'precio_cierre': None,
+                'accion': str(pata_data['Action']).upper()  # Guardar la acción en mayúsculas
             })
             total_credito_debito += pata_data['Total']
 
@@ -146,14 +148,24 @@ def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posicio
         estrategia = "NakedPut"
     elif es_1_1_2(patas):
         estrategia = "1-1-2"
+        print("DEBUG: ¡Identificado como 1-1-2!")
     elif es_calendar_1_1_2(patas):
         estrategia = "Calendar1-1-2"
+        print("DEBUG: ¡Identificado como Calendar 1-1-2!")
     elif es_iron_condor(patas):
         estrategia = "IronCondor"
+        print("DEBUG: ¡Identificado como Iron Condor!")
     elif es_strangle(patas):
-        estrategia = "Strangle"
+        estrategia = "Strangle"  # Añadir la llamada a es_strangle
+        print("DEBUG: ¡Identificado como Strangle!")
     else:
-        estrategia = "Unknown"
+        spread_type = identificar_spread(patas, total_credito_debito)
+        if spread_type:
+            estrategia = spread_type
+            print(f"DEBUG: ¡Identificado como {estrategia}!")
+        else:
+            estrategia = "Unknown"
+            print("DEBUG: No se pudo identificar la estrategia")
 
     # Reemplazar caracteres problemáticos en el nombre del archivo
     subyacente_base_seguro = re.sub(r'[\\/*?:"<>|]', '_', subyacente_base)

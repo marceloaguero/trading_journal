@@ -182,3 +182,40 @@ def es_strangle(patas):
         return False
 
     return True
+
+def identificar_spread(patas, total):
+    """
+    Identifica si las patas corresponden a una estrategia Spread (Vertical).
+
+    Args:
+        patas (list): Una lista de diccionarios, donde cada diccionario representa una pata de la operación.
+        total (float): El Total (crédito o débito) de la operación.
+
+    Returns:
+        str: El tipo de spread ("Credit Put Spread", "Credit Call Spread", "Debit Put Spread", "Debit Call Spread"),
+             o None si no es un spread.
+    """
+    if len(patas) != 2:
+        return None
+
+    tipos = [pata['tipo'] for pata in patas]
+    if tipos[0] != tipos[1]:
+        return None
+
+    acciones = [pata['accion'] for pata in patas]
+    if 'SELL_TO_OPEN' not in acciones or 'BUY_TO_OPEN' not in acciones:
+        return None
+
+    if tipos[0] == 'PUT':
+        tipo_opcion = "Put"
+    elif tipos[0] == 'CALL':
+        tipo_opcion = "Call"
+    else:
+        return None  # Por si acaso
+
+    if total > 0:
+        return f"Credit {tipo_opcion} Spread"
+    elif total < 0:
+        return f"Debit {tipo_opcion} Spread"
+    else:
+        return None  # Imposible, pero por si acaso
