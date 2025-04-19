@@ -219,3 +219,42 @@ def identificar_spread(patas, total):
         return f"Debit {tipo_opcion} Spread"
     else:
         return None  # Imposible, pero por si acaso
+
+def es_broken_wing_condor(patas):
+    """
+    Identifica la estrategia Broken Wing Condor (con PUTs).
+
+    Args:
+        patas (list): Una lista de diccionarios, donde cada diccionario representa una pata de la operación.
+
+    Returns:
+        bool: True si las patas corresponden a una estrategia Broken Wing Condor, False en caso contrario.
+    """
+    if len(patas) != 4 or not all(pata['tipo'] == 'PUT' for pata in patas):
+        return False
+
+    vencimientos = [pata['vencimiento'] for pata in patas]
+    if len(set(vencimientos)) != 1:
+        return False
+
+    acciones = [pata['accion'] for pata in patas]
+    if acciones.count('SELL_TO_OPEN') != 2 or acciones.count('BUY_TO_OPEN') != 2:
+        return False
+
+    cantidades = [pata['cantidad'] for pata in patas]
+    if cantidades.count(1) != 2 or cantidades.count(-1) != 2 or any(cantidad == 0 for cantidad in cantidades):  # Corrección
+        return False
+
+    # Ordenar las patas por strike
+    patas_ordenadas = sorted(patas, key=lambda pata: pata['strike'])
+    strikes = [pata['strike'] for pata in patas_ordenadas]
+
+    if strikes[0] < strikes[1] < strikes[2] < strikes[3] and \
+       patas_ordenadas[0]['accion'] == 'BUY_TO_OPEN' and \
+       patas_ordenadas[1]['accion'] == 'SELL_TO_OPEN' and \
+       patas_ordenadas[2]['accion'] == 'SELL_TO_OPEN' and \
+       patas_ordenadas[3]['accion'] == 'BUY_TO_OPEN' and \
+       (strikes[1] - strikes[0]) > (strikes[3] - strikes[2]):
+        return True
+
+    return False

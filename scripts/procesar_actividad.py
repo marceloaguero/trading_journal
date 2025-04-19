@@ -8,7 +8,7 @@ import re  # Importar la biblioteca de expresiones regulares
 import glob  # Para buscar archivos
 import shutil  # Para mover archivos
 
-from utils import parse_symbol_improved, calcular_dte_pata, es_1_1_2, es_calendar_1_1_2, es_iron_condor, es_strangle, identificar_spread  # Asegúrate de importar es_strangle
+from utils import parse_symbol_improved, calcular_dte_pata, es_1_1_2, es_calendar_1_1_2, es_iron_condor, es_strangle, identificar_spread, es_broken_wing_condor  # Asegúrate de importar es_strangle y es_broken_wing_condor
 
 
 def procesar_archivos_actividad(carpeta_csv="data/csv/actividad/", carpeta_procesados="data/csv/actividad/procesados/",
@@ -158,6 +158,9 @@ def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posicio
     elif es_strangle(patas):
         estrategia = "Strangle"  # Añadir la llamada a es_strangle
         print("DEBUG: ¡Identificado como Strangle!")
+    elif es_broken_wing_condor(patas):  # Añadir la llamada a es_broken_wing_condor
+        estrategia = "BrokenWingCondor"
+        print("DEBUG: ¡Identificado como Broken Wing Condor!")
     else:
         spread_type = identificar_spread(patas, total_credito_debito)
         if spread_type:
@@ -214,3 +217,5 @@ def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posicio
 if __name__ == "__main__":
     archivo_csv = "data/csv/actividad/tastytrade_transactions_history_x5WW34822_241120_to_241120.csv"  # Reemplaza con tu archivo
     procesar_archivos_actividad()
+
+
