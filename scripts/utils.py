@@ -258,3 +258,77 @@ def es_broken_wing_condor(patas):
         return True
 
     return False
+
+def es_butterfly(patas):
+    """
+    Identifica la estrategia Butterfly (adaptada para 3 patas).
+
+    Args:
+        patas (list): Una lista de diccionarios, donde cada diccionario representa una pata de la operación.
+
+    Returns:
+        bool: True si las patas corresponden a una estrategia Butterfly, False en caso contrario.
+    """
+    if len(patas) != 3 or not all(pata['tipo'] == patas[0]['tipo'] for pata in patas): #Corrección: Puede ser CALL o PUT
+        return False
+
+    vencimientos = [pata['vencimiento'] for pata in patas]
+    if len(set(vencimientos)) != 1:
+        return False
+
+    cantidades = [pata['cantidad'] for pata in patas]
+    if sum(cantidades) != 0 or cantidades.count(1) != 2 or cantidades.count(-2) != 1: #Corrección: Cantidades
+        return False
+
+    strikes = [pata['strike'] for pata in patas]
+    if len(set(strikes)) != 3:
+        return False
+
+    # Ordenar las patas por strike
+    patas_ordenadas = sorted(patas, key=lambda pata: pata['strike'])
+
+    if patas_ordenadas[1]['strike'] - patas_ordenadas[0]['strike'] != patas_ordenadas[2]['strike'] - patas_ordenadas[1]['strike']:
+        return False
+
+    return True
+
+def es_broken_wing_butterfly(patas):
+    """
+    Identifica la estrategia Broken Wing Butterfly (adaptada para 3 patas).
+
+    Args:
+        patas (list): Una lista de diccionarios, donde cada diccionario representa una pata de la operación.
+
+    Returns:
+        bool: True si las patas corresponden a una estrategia Broken Wing Butterfly, False en caso contrario.
+    """
+    print("DEBUG: es_broken_wing_butterfly - Inicio")
+    if len(patas) != 3 or not all(pata['tipo'] == patas[0]['tipo'] for pata in patas): #Corrección: Puede ser CALL o PUT
+        print("DEBUG: No es Broken Wing Butterfly (Número de patas o tipos incorrectos)")
+        return False
+
+    vencimientos = [pata['vencimiento'] for pata in patas]
+    if len(set(vencimientos)) != 1:
+        print("DEBUG: No es Broken Wing Butterfly (Vencimientos incorrectos)")
+        return False
+
+    cantidades = [pata['cantidad'] for pata in patas]
+    if sum(cantidades) != 0 or cantidades.count(1) != 2 or cantidades.count(-2) != 1: #Corrección: Cantidades
+        print("DEBUG: No es Broken Wing Butterfly (Cantidades incorrectas)")
+        return False
+
+    strikes = [pata['strike'] for pata in patas]
+    if len(set(strikes)) != 3:
+        print("DEBUG: No es Broken Wing Butterfly (Número de strikes incorrecto)")
+        return False
+
+    # Ordenar las patas por strike
+    patas_ordenadas = sorted(patas, key=lambda pata: pata['strike'])
+    print(f"DEBUG: Patas Ordenadas: {patas_ordenadas}")
+
+    if patas_ordenadas[1]['strike'] - patas_ordenadas[0]['strike'] != patas_ordenadas[2]['strike'] - patas_ordenadas[1]['strike']:
+        print("DEBUG: Es Broken Wing Butterfly (Strikes no equidistantes)")
+        return True
+    else:
+        print("DEBUG: No es Broken Wing Butterfly (Strikes equidistantes)")
+        return False
