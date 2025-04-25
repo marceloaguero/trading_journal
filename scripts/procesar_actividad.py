@@ -8,7 +8,7 @@ import re  # Importar la biblioteca de expresiones regulares
 import glob  # Para buscar archivos
 import shutil  # Para mover archivos
 
-from utils import parse_symbol_improved, calcular_dte_pata, es_1_1_2, es_calendar_1_1_2, es_iron_condor, es_strangle, identificar_spread, es_broken_wing_condor, es_butterfly, es_broken_wing_butterfly  # Asegúrate de importar todas las funciones de utils
+from utils import parse_symbol_improved, calcular_dte_pata, es_1_1_2, es_calendar_1_1_2, es_iron_condor, es_strangle, identificar_spread, es_butterfly, es_broken_wing_butterfly, es_broken_wing_condor, es_ratio_spread  # Asegúrate de importar todas las funciones de utils
 
 
 def procesar_archivos_actividad(carpeta_csv="data/csv/actividad/", carpeta_procesados="data/csv/actividad/procesados/",
@@ -158,15 +158,18 @@ def crear_archivo_yaml_posicion(df, subyacente_base, trade_data, carpeta_posicio
     elif es_strangle(patas):
         estrategia = "Strangle"
         print("DEBUG: ¡Identificado como Strangle!")
-    elif es_broken_wing_condor(patas):
-        estrategia = "BrokenWingCondor"
-        print("DEBUG: ¡Identificado como Broken Wing Condor!")
     elif es_butterfly(patas):
         estrategia = "Butterfly"
         print("DEBUG: ¡Identificado como Butterfly!")
     elif es_broken_wing_butterfly(patas):
         estrategia = "BrokenWingButterfly"
         print("DEBUG: ¡Identificado como Broken Wing Butterfly!")
+    elif es_broken_wing_condor(patas):
+        estrategia = "BrokenWingCondor"
+        print("DEBUG: ¡Identificado como Broken Wing Condor!")
+    elif es_ratio_spread(patas):
+        estrategia = "RatioSpread"
+        print("DEBUG: ¡Identificado como Ratio Spread!")
     else:
         spread_type = identificar_spread(patas, total_credito_debito)
         if spread_type:

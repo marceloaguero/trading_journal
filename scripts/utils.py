@@ -332,3 +332,30 @@ def es_broken_wing_butterfly(patas):
     else:
         print("DEBUG: No es Broken Wing Butterfly (Strikes equidistantes)")
         return False
+
+def es_ratio_spread(patas):
+    """
+    Identifica la estrategia Ratio Spread.
+
+    Args:
+        patas (list): Una lista de diccionarios, donde cada diccionario representa una pata de la operación.
+
+    Returns:
+        bool: True si las patas corresponden a una estrategia Ratio Spread, False en caso contrario.
+    """
+    if len(patas) != 2:
+        return False
+
+    vencimientos = [pata['vencimiento'] for pata in patas]
+    if len(set(vencimientos)) != 1:
+        return False
+
+    tipos = [pata['tipo'] for pata in patas]
+    if tipos[0] != tipos[1]:
+        return False
+
+    cantidades = [abs(pata['cantidad']) for pata in patas]  # Usar valores absolutos
+    if cantidades[0] == cantidades[1]:
+        return False  # No es un ratio spread si las cantidades son iguales
+
+    return True
